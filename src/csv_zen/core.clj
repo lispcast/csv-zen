@@ -49,6 +49,24 @@
     (read-and-insert db upload-id rdr)
     upload-id))
 
+(defn do-insert-from-file [db endpoint-id filename]
+  (with-open [rdr (io/reader (io/file filename))]
+    (do-upload db endpoint-id rdr)))
+
+(defn keys-for-upload [db upload-id]
+  (->> (keys-for-upload* db {:upload-id upload-id})
+    (map :key)
+    set))
+
+(defn rows-for-upload [db upload-id]
+  (let [rows (rows-for-upload* db {:upload-id upload-id})
+        groups (group-by :row_id rows)]
+    (for [[row-id cells] groups]
+      (reduce (fn [row {:keys [key value]}]
+                (assoc row key value))
+        {:row-id row-id}
+        cells))))
+
 (defn app [req]
   {:headers {}
    :status 200
