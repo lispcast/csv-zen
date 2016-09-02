@@ -5,6 +5,7 @@
             :url "http://creativecommons.org/publicdomain/zero/1.0/"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [ring "1.5.0"]
+                 [org.clojure/data.csv "0.1.3"]
                  [com.layerware/hugsql "0.4.7"]
                  [org.postgresql/postgresql "9.4.1207"]]
 
