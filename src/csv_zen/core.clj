@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [ring.middleware.params :as params]
             [ring.middleware.multipart-params :as multipart]
+            [ring.handler.dump :as dump]
             [clojure.core.match :refer [match]]
             [clojure.string :as str]
             [clojure.pprint :as pprint]))
@@ -105,10 +106,15 @@
   (match [(:request-method req)
           (segments-from-path (:uri req))]
 
+    [_ ["dump"]]
+    (dump/handle-dump req)
+    
     [:get []]
     {:headers {}
      :status 200
-     :body "Hello, World!"}
+     :body (do
+             (throw (ex-info "Exception!" {}))
+             "Hello, World!")}
 
     [:post ["endpoints"]]
     (create-endpoint-request)

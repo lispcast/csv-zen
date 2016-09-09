@@ -11,4 +11,8 @@
 
                  [org.clojure/core.match "0.3.0-alpha4"]]
 
-  :main csv-zen.core)
+  :main csv-zen.core
+
+  :profiles {:dev {:source-paths ["dev-src"]
+                   :main csv-zen.dev
+                   :dependencies [[prone "1.1.1"]]}})
