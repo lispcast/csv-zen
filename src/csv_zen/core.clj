@@ -5,6 +5,9 @@
             [clojure.java.io :as io]
             [ring.middleware.params :as params]
             [ring.middleware.multipart-params :as multipart]
+            [ring.middleware.resource :as resource]
+            [ring.middleware.content-type :as content-type]
+            [ring.middleware.not-modified :as not-modified]
             [ring.handler.dump :as dump]
             [clojure.core.match :refer [match]]
             [clojure.string :as str]
@@ -108,13 +111,11 @@
 
     [_ ["dump"]]
     (dump/handle-dump req)
-    
+
     [:get []]
-    {:headers {}
+    {:headers {"Content-type" "text/html"}
      :status 200
-     :body (do
-             (throw (ex-info "Exception!" {}))
-             "Hello, World!")}
+     :body (io/file (io/resource "homepage/index.html"))}
 
     [:post ["endpoints"]]
     (create-endpoint-request)
@@ -128,6 +129,9 @@
 
 (def app
   (-> routes
+    (resource/wrap-resource "homepage")
+    content-type/wrap-content-type
+    not-modified/wrap-not-modified
     params/wrap-params
     multipart/wrap-multipart-params))
 
