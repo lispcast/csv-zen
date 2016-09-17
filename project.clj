@@ -9,7 +9,8 @@
                  [com.layerware/hugsql "0.4.7"]
                  [org.postgresql/postgresql "9.4.1207"]
 
-                 [org.clojure/core.match "0.3.0-alpha4"]]
+                 [org.clojure/core.match "0.3.0-alpha4"]
+                 [hiccup "1.0.5"]]
 
   :main csv-zen.core
 

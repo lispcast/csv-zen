@@ -11,7 +11,9 @@
             [ring.handler.dump :as dump]
             [clojure.core.match :refer [match]]
             [clojure.string :as str]
-            [clojure.pprint :as pprint]))
+            [clojure.pprint :as pprint]
+            [hiccup.core :refer [html h]]
+            [hiccup.page :as page]))
 
 (def scheme "https")
 (def host "localhost:8080")
@@ -105,6 +107,42 @@
              "\"}}")
      :headers {"Location" (str scheme "://" host "/endpoint/" endpoint-id "/upload/" upload-id)}}))
 
+(defn dashboard-page []
+  (page/html5
+             {:lang :en}
+             [:head
+              [:meta {:charset "utf-8"}]
+              [:meta {:http-equiv "X-UA-Compatible"
+                      :content "IE=edge"}]
+              [:meta {:name "viewport"
+                      :content "width=device-width, initial-scale=1"}]
+              ;; the above 3 meta tags must come first
+              [:link {:rel "stylesheet"
+                      :href "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+                      :integrity "sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+                      :crossorigin "anonymous"}]
+              [:link {:rel "stylesheet"
+                      :href "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+                      :integrity "sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp"
+                      :crossorigin "anonymous"}]
+
+
+              [:title "Dashboard"]]
+             [:body
+              [:div.container
+               [:h1 "Dashboard"]
+
+               [:form
+                [:button.btn.btn-default "Click me!"]]
+               ]
+              [:script {:src "https://code.jquery.com/jquery-3.1.0.min.js"}]
+
+              [:script {:src "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+                        :integrity "sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+                        :crossorigin "anonymous"}]
+
+              ]))
+
 (defn routes [req]
   (match [(:request-method req)
           (segments-from-path (:uri req))]
@@ -117,6 +155,11 @@
      :status 200
      :body (io/file (io/resource "homepage/index.html"))}
 
+    [:get ["dashboard"]]
+    {:headers {"Content-type" "text/html"}
+     :status 200
+     :body (dashboard-page)}
+
     [:post ["endpoints"]]
     (create-endpoint-request)
 
@@ -124,7 +167,7 @@
     (upload-request req ?endpoint-id)
 
     [_ _] {:status 404
-           :headers {}
+           :headers {"Content-type" "text/plain"}
            :body (with-out-str (pprint/pprint req))}))
 
 (def app
