@@ -13,7 +13,8 @@
             [clojure.string :as str]
             [clojure.pprint :as pprint]
             [hiccup.core :refer [html h]]
-            [hiccup.page :as page]))
+            [hiccup.page :as page]
+            [bidi.bidi :as bidi]))
 
 (def scheme "https")
 (def host "localhost:8080")
@@ -89,7 +90,7 @@
       (str/split #"/"))))
 
 
-(defn create-endpoint-request []
+(defn create-endpoint-request [req]
   (let [endpoint-id (create-endpoint db)]
     {:status 201
      :body (str "{\"endpoint\": {\"id\": \""
@@ -97,8 +98,9 @@
              "\"}}")
      :headers {"Location" (str scheme "://" host "/endpoint/" endpoint-id)}}))
 
-(defn upload-request [req endpoint-id]
-  (let [endpoint-id (java.util.UUID/fromString endpoint-id)
+(defn upload-request [req]
+  (let [endpoint-id (get-in req [:route-params :id])
+        endpoint-id (java.util.UUID/fromString endpoint-id)
         multipart (get-in req [:multipart-params "file" :tempfile])
         upload-id (do-insert-from-file db endpoint-id multipart)]
     {:status 201
@@ -143,7 +145,38 @@
 
               ]))
 
-(defn routes [req]
+(def handlers
+  {:dump dump/handle-dump
+   :homepage (fn [req]
+               {:headers {"Content-type" "text/html"}
+                :status 200
+                :body (io/file (io/resource "homepage/index.html"))
+                })
+   :dashboard (fn [req]
+                {:headers {"Content-type" "text/html"}
+                 :status 200
+                 :body (dashboard-page)})
+   :endpoints create-endpoint-request
+   :endpoint upload-request})
+
+(def routes
+  ["/" {"dump" :dump
+        [] :homepage
+        "dashboard" :dashboard
+        "endpoints" :endpoints
+        ["endpoint/" :id] :endpoint}])
+
+(defn handle-routes [req]
+  (let [uri (:uri req)
+        {:keys [handler route-params]} (bidi/match-route routes uri)
+        hndlr (get handlers handler)]
+    (if (not (nil? hndlr))
+      (hndlr (assoc req :route-params route-params))
+      {:status 404
+       :headers {"Content-type" "text/plain"}
+       :body (with-out-str (pprint/pprint req))})))
+
+(defn routes-old [req]
   (match [(:request-method req)
           (segments-from-path (:uri req))]
 
@@ -171,7 +204,7 @@
            :body (with-out-str (pprint/pprint req))}))
 
 (def app
-  (-> routes
+  (-> handle-routes
     (resource/wrap-resource "homepage")
     content-type/wrap-content-type
     not-modified/wrap-not-modified

@@ -10,7 +10,8 @@
                  [org.postgresql/postgresql "9.4.1207"]
 
                  [org.clojure/core.match "0.3.0-alpha4"]
-                 [hiccup "1.0.5"]]
+                 [hiccup "1.0.5"]
+                 [bidi "2.0.12"]]
 
   :main csv-zen.core
 
