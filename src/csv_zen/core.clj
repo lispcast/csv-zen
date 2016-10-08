@@ -14,7 +14,8 @@
             [clojure.pprint :as pprint]
             [hiccup.core :refer [html h]]
             [hiccup.page :as page]
-            [bidi.bidi :as bidi]))
+            [bidi.bidi :as bidi]
+            [yada.yada :as yada]))
 
 (def scheme "https")
 (def host "localhost:8080")
@@ -93,9 +94,7 @@
 (defn create-endpoint-request [req]
   (let [endpoint-id (create-endpoint db)]
     {:status 201
-     :body (str "{\"endpoint\": {\"id\": \""
-             endpoint-id
-             "\"}}")
+     :body {:endpoint {:id endpoint-id}}
      :headers {"Location" (str scheme "://" host "/endpoint/" endpoint-id)}}))
 
 (defn upload-request [req]
@@ -160,11 +159,28 @@
    :endpoint upload-request})
 
 (def routes
-  ["/" {"dump" :dump
-        [] :homepage
-        "dashboard" :dashboard
-        "endpoints" :endpoints
-        ["endpoint/" :id] :endpoint}])
+  ["/" {"dump" dump/handle-dump
+        [] (yada/resource
+             {:id :homepage
+              :description "The homepage for our website."
+              :produces {:media-type "text/html"
+                         :language "en"}
+              :response (io/file (io/resource "homepage/index.html"))})
+        "dashboard" (yada/resource
+                      {:id :dashboard
+                       :produces {:media-type "text/html"
+                                  :language "en"}
+                       :response (fn [ctx]
+                                   (dashboard-page))})
+        "endpoints" (yada/resource
+                      {:id :endpoints
+                       :produces {:media-type "application/json"}
+                       :methods {:post
+                                 {:response
+                                  (fn [ctx]
+                                    (assoc ctx
+                                      :response (create-endpoint-request (:request ctx))))}}})
+        ["endpoint/" :id] upload-request}])
 
 (defn handle-routes [req]
   (let [uri (:uri req)
@@ -211,7 +227,10 @@
     params/wrap-params
     multipart/wrap-multipart-params))
 
+(defonce server (atom nil))
+
 (defn -main []
   (init-db)
-  (jetty/run-jetty app
-    {:port 8080}))
+  (let [listener (yada/listener routes
+                   {:port 8080})]
+    (reset! server listener)))

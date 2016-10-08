@@ -11,7 +11,9 @@
 
                  [org.clojure/core.match "0.3.0-alpha4"]
                  [hiccup "1.0.5"]
-                 [bidi "2.0.12"]]
+                 [bidi "2.0.12"]
+                 [aleph "0.4.1"]
+                 [yada "1.1.39"]]
 
   :main csv-zen.core
 
