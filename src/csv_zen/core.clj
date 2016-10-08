@@ -15,9 +15,10 @@
             [hiccup.core :refer [html h]]
             [hiccup.page :as page]
             [bidi.bidi :as bidi]
+            [bidi.vhosts :refer [vhosts-model]]
             [yada.yada :as yada]))
 
-(def scheme "https")
+(def scheme "http")
 (def host "localhost:8080")
 
 (def db (System/getenv "DATABASE_URL"))
@@ -92,7 +93,7 @@
 
 (defn create-endpoint-request [ctx]
   (let [endpoint-id (create-endpoint db)]
-    (java.net.URI. (str scheme "://" host "/endpoint/" endpoint-id))))
+    (java.net.URI. (yada/url-for ctx :endpoint {:route-params {:id endpoint-id}}))))
 
 (defn upload-request [req]
   (let [endpoint-id (get-in req [:route-params :id])
@@ -156,27 +157,31 @@
    :endpoint upload-request})
 
 (def routes
-  ["/" {"dump" dump/handle-dump
-        [] (yada/resource
-             {:id :homepage
-              :description "The homepage for our website."
-              :produces {:media-type "text/html"
-                         :language "en"}
-              :response (io/file (io/resource "homepage/index.html"))})
-        "dashboard" (yada/resource
-                      {:id :dashboard
-                       :produces {:media-type "text/html"
-                                  :language "en"}
-                       :response (fn [ctx]
-                                   (dashboard-page))})
-        "endpoints" (yada/resource
-                      {:id :endpoints
-                       :produces {:media-type "application/json"}
-                       :methods {:post
-                                 {:response
-                                  (fn [ctx]
-                                    (create-endpoint-request ctx))}}})
-        ["endpoint/" :id] upload-request}])
+  (vhosts-model
+    [[(str scheme "://" host)]
+     ["/" {"dump" dump/handle-dump
+           [] (yada/resource
+                {:id :homepage
+                 :description "The homepage for our website."
+                 :produces {:media-type "text/html"
+                            :language "en"}
+                 :response (io/file (io/resource "homepage/index.html"))})
+           "dashboard" (yada/resource
+                         {:id :dashboard
+                          :produces {:media-type "text/html"
+                                     :language "en"}
+                          :response (fn [ctx]
+                                      (dashboard-page))})
+           "endpoints" (yada/resource
+                         {:id :endpoints
+                          :produces {:media-type "application/json"}
+                          :methods {:post
+                                    {:response
+                                     (fn [ctx]
+                                       (create-endpoint-request ctx))}}})
+           ["endpoint/" :id] (yada/resource
+                               {:id :endpoint
+                                :response upload-request})}]]))
 
 (defn handle-routes [req]
   (let [uri (:uri req)
