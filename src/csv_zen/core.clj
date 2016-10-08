@@ -90,12 +90,9 @@
       (.substring 1)
       (str/split #"/"))))
 
-
-(defn create-endpoint-request [req]
+(defn create-endpoint-request [ctx]
   (let [endpoint-id (create-endpoint db)]
-    {:status 201
-     :body {:endpoint {:id endpoint-id}}
-     :headers {"Location" (str scheme "://" host "/endpoint/" endpoint-id)}}))
+    (java.net.URI. (str scheme "://" host "/endpoint/" endpoint-id))))
 
 (defn upload-request [req]
   (let [endpoint-id (get-in req [:route-params :id])
@@ -178,8 +175,7 @@
                        :methods {:post
                                  {:response
                                   (fn [ctx]
-                                    (assoc ctx
-                                      :response (create-endpoint-request (:request ctx))))}}})
+                                    (create-endpoint-request ctx))}}})
         ["endpoint/" :id] upload-request}])
 
 (defn handle-routes [req]
@@ -234,3 +230,10 @@
   (let [listener (yada/listener routes
                    {:port 8080})]
     (reset! server listener)))
+
+(defn reset []
+  (when (fn? (:close @server))
+    ((:close @server)))
+  (-main))
+
+(reset)
