@@ -95,16 +95,13 @@
   (let [endpoint-id (create-endpoint db)]
     (java.net.URI. (yada/url-for ctx :endpoint {:route-params {:id endpoint-id}}))))
 
-(defn upload-request [req]
-  (let [endpoint-id (get-in req [:route-params :id])
+(defn upload-request [ctx]
+  (let [req (:request ctx)
+        endpoint-id (get-in req [:route-params :id])
         endpoint-id (java.util.UUID/fromString endpoint-id)
-        multipart (get-in req [:multipart-params "file" :tempfile])
-        upload-id (do-insert-from-file db endpoint-id multipart)]
-    {:status 201
-     :body (str "{\"upload\": {\"id\": \""
-             upload-id
-             "\"}}")
-     :headers {"Location" (str scheme "://" host "/endpoint/" endpoint-id "/upload/" upload-id)}}))
+        multipart (get-in ctx [:parameters :form :file])
+        upload-id (do-upload db endpoint-id (java.io.StringReader. multipart))]
+    (java.net.URI. (yada/url-for ctx :endpoint-upload {:route-params {:id endpoint-id :upload-id upload-id}}))))
 
 (defn dashboard-page []
   (page/html5
@@ -142,20 +139,6 @@
 
               ]))
 
-(def handlers
-  {:dump dump/handle-dump
-   :homepage (fn [req]
-               {:headers {"Content-type" "text/html"}
-                :status 200
-                :body (io/file (io/resource "homepage/index.html"))
-                })
-   :dashboard (fn [req]
-                {:headers {"Content-type" "text/html"}
-                 :status 200
-                 :body (dashboard-page)})
-   :endpoints create-endpoint-request
-   :endpoint upload-request})
-
 (def routes
   (vhosts-model
     [[(str scheme "://" host)]
@@ -179,54 +162,17 @@
                                     {:response
                                      (fn [ctx]
                                        (create-endpoint-request ctx))}}})
-           ["endpoint/" :id] (yada/resource
-                               {:id :endpoint
-                                :response upload-request})}]]))
-
-(defn handle-routes [req]
-  (let [uri (:uri req)
-        {:keys [handler route-params]} (bidi/match-route routes uri)
-        hndlr (get handlers handler)]
-    (if (not (nil? hndlr))
-      (hndlr (assoc req :route-params route-params))
-      {:status 404
-       :headers {"Content-type" "text/plain"}
-       :body (with-out-str (pprint/pprint req))})))
-
-(defn routes-old [req]
-  (match [(:request-method req)
-          (segments-from-path (:uri req))]
-
-    [_ ["dump"]]
-    (dump/handle-dump req)
-
-    [:get []]
-    {:headers {"Content-type" "text/html"}
-     :status 200
-     :body (io/file (io/resource "homepage/index.html"))}
-
-    [:get ["dashboard"]]
-    {:headers {"Content-type" "text/html"}
-     :status 200
-     :body (dashboard-page)}
-
-    [:post ["endpoints"]]
-    (create-endpoint-request)
-
-    [:post ["endpoint" ?endpoint-id]]
-    (upload-request req ?endpoint-id)
-
-    [_ _] {:status 404
-           :headers {"Content-type" "text/plain"}
-           :body (with-out-str (pprint/pprint req))}))
-
-(def app
-  (-> handle-routes
-    (resource/wrap-resource "homepage")
-    content-type/wrap-content-type
-    not-modified/wrap-not-modified
-    params/wrap-params
-    multipart/wrap-multipart-params))
+           ["endpoint/" :id]
+           {"" (yada/resource
+                 {:id :endpoint
+                  :produces {:media-type "application/json"}
+                  :methods {:post
+                            {:consumes "multipart/form-data"
+                             :parameters {:form {:file String}}
+                             :response upload-request}}})
+            ["/upload/" :upload-id] (yada/resource
+                                     {:id :endpoint-upload
+                                      :response nil})}}]]))
 
 (defonce server (atom nil))
 
