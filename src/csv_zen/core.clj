@@ -16,7 +16,8 @@
             [hiccup.page :as page]
             [bidi.bidi :as bidi]
             [bidi.vhosts :refer [vhosts-model]]
-            [yada.yada :as yada]))
+            [yada.yada :as yada]
+            [yada.resources.classpath-resource :refer [new-classpath-resource]]))
 
 (def scheme "http")
 (def host "localhost:8080")
@@ -142,27 +143,20 @@
 (def routes
   (vhosts-model
     [[(str scheme "://" host)]
-     ["/" {"dump" dump/handle-dump
-           [] (yada/resource
-                {:id :homepage
-                 :description "The homepage for our website."
-                 :produces {:media-type "text/html"
-                            :language "en"}
-                 :response (io/file (io/resource "homepage/index.html"))})
-           "dashboard" (yada/resource
-                         {:id :dashboard
-                          :produces {:media-type "text/html"
-                                     :language "en"}
-                          :response (fn [ctx]
-                                      (dashboard-page))})
-           "endpoints" (yada/resource
-                         {:id :endpoints
-                          :produces {:media-type "application/json"}
-                          :methods {:post
-                                    {:response
-                                     (fn [ctx]
-                                       (create-endpoint-request ctx))}}})
-           ["endpoint/" :id]
+     ["" [["/dump" dump/handle-dump]
+          ["/dashboard" (yada/resource {:id :dashboard
+                                        :produces {:media-type "text/html"
+                                                   :language "en"}
+                                        :response (fn [ctx]
+                                                    (dashboard-page))})]
+          ["/endpoints" (yada/resource
+                          {:id :endpoints
+                           :produces {:media-type "application/json"}
+                           :methods {:post
+                                     {:response
+                                      (fn [ctx]
+                                        (create-endpoint-request ctx))}}})]
+          [["/endpoint/" :id]
            {"" (yada/resource
                  {:id :endpoint
                   :produces {:media-type "application/json"}
@@ -171,8 +165,10 @@
                              :parameters {:form {:file String}}
                              :response upload-request}}})
             ["/upload/" :upload-id] (yada/resource
-                                     {:id :endpoint-upload
-                                      :response nil})}}]]))
+                                      {:id :endpoint-upload
+                                       :response nil})}]
+          ["" (new-classpath-resource "homepage"
+                {:index-files ["index.html"]})]]]]))
 
 (defonce server (atom nil))
 
