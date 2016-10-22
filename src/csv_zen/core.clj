@@ -93,16 +93,27 @@
       (str/split #"/"))))
 
 (defn create-endpoint-request [ctx]
-  (let [endpoint-id (create-endpoint db)]
-    (java.net.URI. (yada/url-for ctx :endpoint {:route-params {:id endpoint-id}}))))
+  (let [endpoint-id (create-endpoint db)
+        response (:response ctx)]
+    (-> response
+      (assoc :status 201)
+      (assoc :body {:endpoint {:id endpoint-id}})
+      (assoc-in [:headers "Location"]
+        (yada/url-for ctx :endpoint {:route-params {:id endpoint-id}})))))
 
 (defn upload-request [ctx]
   (let [req (:request ctx)
+        response (:response ctx)
         endpoint-id (get-in req [:route-params :id])
         endpoint-id (java.util.UUID/fromString endpoint-id)
         multipart (get-in ctx [:parameters :form :file])
         upload-id (do-upload db endpoint-id (java.io.StringReader. multipart))]
-    (java.net.URI. (yada/url-for ctx :endpoint-upload {:route-params {:id endpoint-id :upload-id upload-id}}))))
+    (-> response
+      (assoc :status 201)
+      (assoc :body {:upload {:id upload-id
+                             :endpoint {:id endpoint-id}}})
+      (assoc-in [:headers "Location"]
+        (yada/url-for ctx :endpoint-upload {:route-params {:id endpoint-id :upload-id upload-id}})))))
 
 (defn dashboard-page []
   (page/html5
